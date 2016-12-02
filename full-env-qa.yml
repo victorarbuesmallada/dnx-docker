@@ -1,0 +1,38 @@
+adcost-frontEnd:
+    image: packages01-internal.adstream.com/adstream-costs/costs-frontend:1.0.0.37
+    restart: always
+    environment:
+        NODE_ENV: test
+        AC_CORE: 'http://backend:5000'
+        A5_CORE: 'http://qa-a5ai1-31.adstreamdev.com:8080'
+    ports:
+        - "80:8882"
+    links:
+        - adcost-backEnd:backend
+    volumes:
+        - ./var/log/costs-frontend:/usr/src/app/logs
+
+adcost-backEnd:
+    image: packages01-internal.adstream.com/costs/costs.net:1.0.0.92
+    restart: always
+    ports:
+        - '5000:5000'
+    links:
+        - postgres
+    environment:
+        - AppSettings__ServiceUrl=http://localhost:5000/
+        - Data__DatabaseConnection__ConnectionString=Host=postgres;Port=5432;Database=costs;Pooling=true;User Id=postgres;Password=postgres;
+        - AppSettings__GdamCoreHost=http://qa-a5ai1-31.adstreamdev.com:8080/
+        - AppSettings__PaperPusherHost=http://qa-a5ai1-31.adstreamdev.com:7272/
+        - AppSettings__AMQHost=failover:(tcp://10.44.127.90:61616)
+        - AppSettings__GdnHost=http://10.44.127.54:8888;http://10.44.127.55:8888
+    volumes:
+        - ./var/log/costs-backend:/usr/src/app/logs
+
+postgres:
+    image: postgres:9.6
+    restart: always
+    ports:
+        - "27117:5432"
+    volumes:
+        - ./data/adcosts-postgres/data:/var/lib/postgresql/data
