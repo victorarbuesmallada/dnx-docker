@@ -1,38 +1,62 @@
-adcost-frontEnd:
-    image: packages01-internal.adstream.com/adstream-costs/costs-frontend:1.0.0.37
-    restart: always
+version: '2'
+services:
+  es1:
+    image: docker.elastic.co/elasticsearch/elasticsearch:5.0.2
+    container_name: es1
     environment:
-        NODE_ENV: test
-        AC_CORE: 'http://backend:5000'
-        A5_CORE: 'http://qa-a5ai1-31.adstreamdev.com:8080'
-    ports:
-        - "80:8882"
-    links:
-        - adcost-backEnd:backend
+      - cluster.name=elasticsearch
+      - bootstrap.memory_lock=true
+      - node.name=es1
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    mem_limit: 1g
+    cap_add:
+      - IPC_LOCK
     volumes:
-        - ./var/log/costs-frontend:/usr/src/app/logs
-
-adcost-backEnd:
-    image: packages01-internal.adstream.com/costs/costs.net:1.0.0.92
-    restart: always
+      - ./esdata1:/usr/share/elasticsearch/data
     ports:
-        - '5000:5000'
-    links:
-        - postgres
+      - 9200:9200
+      - 9300:9300
+    networks:
+      - esnet
+  es2:
+    image: docker.elastic.co/elasticsearch/elasticsearch:5.0.2
+    container_name: es2
     environment:
-        - AppSettings__ServiceUrl=http://localhost:5000/
-        - Data__DatabaseConnection__ConnectionString=Host=postgres;Port=5432;Database=costs;Pooling=true;User Id=postgres;Password=postgres;
-        - AppSettings__GdamCoreHost=http://qa-a5ai1-31.adstreamdev.com:8080/
-        - AppSettings__PaperPusherHost=http://qa-a5ai1-31.adstreamdev.com:7272/
-        - AppSettings__AMQHost=failover:(tcp://10.44.127.90:61616)
-        - AppSettings__GdnHost=http://10.44.127.54:8888;http://10.44.127.55:8888
+      - cluster.name=elasticsearch
+      - bootstrap.memory_lock=true
+      - node.name=es2
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "discovery.zen.ping.unicast.hosts=es1"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    mem_limit: 1g
+    cap_add:
+      - IPC_LOCK
     volumes:
-        - ./var/log/costs-backend:/usr/src/app/logs
+      - ./esdata2:/usr/share/elasticsearch/data
+    networks:
+      - esnet
 
-postgres:
-    image: postgres:9.6
-    restart: always
-    ports:
-        - "27117:5432"
-    volumes:
-        - ./data/adcosts-postgres/data:/var/lib/postgresql/data
+volumes:
+  esdata1:
+    driver: local
+  esdata2:
+    driver: local
+
+networks:
+  esnet:
+    driver: bridge
